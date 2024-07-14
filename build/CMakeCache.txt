@@ -218,6 +218,9 @@ Eigen3_DIR:PATH=/usr/share/eigen3/cmake
 //Path to libs folder
 LIBRARY_DIR:PATH=/home/aysu/Desktop/projects/mcl3dlm_visnav/mcl3dlm/libs
 
+//Path to Open3DConfig.cmake directory
+Open3D_DIR:PATH=/home/aysu/open3d_install/lib/cmake/Open3D
+
 //The directory containing a CMake configuration file for OpenCV.
 OpenCV_DIR:PATH=/usr/local/lib/cmake/opencv4
 
@@ -383,6 +386,8 @@ CMAKE_STRIP-ADVANCED:INTERNAL=1
 CMAKE_UNAME:INTERNAL=/usr/bin/uname
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE
 CMAKE_VERBOSE_MAKEFILE-ADVANCED:INTERNAL=1
+//Details about finding Open3D
+FIND_PACKAGE_MESSAGE_DETAILS_Open3D:INTERNAL=[/home/aysu/open3d_install/lib/cmake/Open3D/Open3DConfig.cmake][v0.18.0()]
 //Details about finding OpenCV
 FIND_PACKAGE_MESSAGE_DETAILS_OpenCV:INTERNAL=[/usr/local][v4.8.0()]
 

@@ -1,4 +1,8 @@
 file(REMOVE_RECURSE
+  "CMakeFiles/mcl3dlm.dir/src/alignment.cpp.o"
+  "CMakeFiles/mcl3dlm.dir/src/alignment.cpp.o.d"
+  "CMakeFiles/mcl3dlm.dir/src/data_association.cpp.o"
+  "CMakeFiles/mcl3dlm.dir/src/data_association.cpp.o.d"
   "CMakeFiles/mcl3dlm.dir/src/local_reconstruction.cpp.o"
   "CMakeFiles/mcl3dlm.dir/src/local_reconstruction.cpp.o.d"
   "CMakeFiles/mcl3dlm.dir/src/main.cpp.o"

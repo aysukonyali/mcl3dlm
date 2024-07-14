@@ -6,7 +6,9 @@
                 "${workspaceFolder}/**",
                 "/usr/include/opencv4",
                 "/usr/local/include/opencv4",
-                "/usr/include/eigen3"
+                "/usr/include/eigen3",
+                "/home/aysu/open3d_install/include",
+                "/home/aysu/open3d_install/include/open3d/3rdparty"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang-14",

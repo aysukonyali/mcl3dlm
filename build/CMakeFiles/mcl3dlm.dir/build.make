@@ -97,16 +97,48 @@ CMakeFiles/mcl3dlm.dir/src/local_reconstruction.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/mcl3dlm.dir/src/local_reconstruction.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/aysu/Desktop/projects/mcl3dlm_visnav/mcl3dlm/src/local_reconstruction.cpp -o CMakeFiles/mcl3dlm.dir/src/local_reconstruction.cpp.s
 
+CMakeFiles/mcl3dlm.dir/src/data_association.cpp.o: CMakeFiles/mcl3dlm.dir/flags.make
+CMakeFiles/mcl3dlm.dir/src/data_association.cpp.o: ../src/data_association.cpp
+CMakeFiles/mcl3dlm.dir/src/data_association.cpp.o: CMakeFiles/mcl3dlm.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/aysu/Desktop/projects/mcl3dlm_visnav/mcl3dlm/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/mcl3dlm.dir/src/data_association.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/mcl3dlm.dir/src/data_association.cpp.o -MF CMakeFiles/mcl3dlm.dir/src/data_association.cpp.o.d -o CMakeFiles/mcl3dlm.dir/src/data_association.cpp.o -c /home/aysu/Desktop/projects/mcl3dlm_visnav/mcl3dlm/src/data_association.cpp
+
+CMakeFiles/mcl3dlm.dir/src/data_association.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/mcl3dlm.dir/src/data_association.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/aysu/Desktop/projects/mcl3dlm_visnav/mcl3dlm/src/data_association.cpp > CMakeFiles/mcl3dlm.dir/src/data_association.cpp.i
+
+CMakeFiles/mcl3dlm.dir/src/data_association.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/mcl3dlm.dir/src/data_association.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/aysu/Desktop/projects/mcl3dlm_visnav/mcl3dlm/src/data_association.cpp -o CMakeFiles/mcl3dlm.dir/src/data_association.cpp.s
+
+CMakeFiles/mcl3dlm.dir/src/alignment.cpp.o: CMakeFiles/mcl3dlm.dir/flags.make
+CMakeFiles/mcl3dlm.dir/src/alignment.cpp.o: ../src/alignment.cpp
+CMakeFiles/mcl3dlm.dir/src/alignment.cpp.o: CMakeFiles/mcl3dlm.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/aysu/Desktop/projects/mcl3dlm_visnav/mcl3dlm/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/mcl3dlm.dir/src/alignment.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/mcl3dlm.dir/src/alignment.cpp.o -MF CMakeFiles/mcl3dlm.dir/src/alignment.cpp.o.d -o CMakeFiles/mcl3dlm.dir/src/alignment.cpp.o -c /home/aysu/Desktop/projects/mcl3dlm_visnav/mcl3dlm/src/alignment.cpp
+
+CMakeFiles/mcl3dlm.dir/src/alignment.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/mcl3dlm.dir/src/alignment.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/aysu/Desktop/projects/mcl3dlm_visnav/mcl3dlm/src/alignment.cpp > CMakeFiles/mcl3dlm.dir/src/alignment.cpp.i
+
+CMakeFiles/mcl3dlm.dir/src/alignment.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/mcl3dlm.dir/src/alignment.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/aysu/Desktop/projects/mcl3dlm_visnav/mcl3dlm/src/alignment.cpp -o CMakeFiles/mcl3dlm.dir/src/alignment.cpp.s
+
 # Object files for target mcl3dlm
 mcl3dlm_OBJECTS = \
 "CMakeFiles/mcl3dlm.dir/src/main.cpp.o" \
-"CMakeFiles/mcl3dlm.dir/src/local_reconstruction.cpp.o"
+"CMakeFiles/mcl3dlm.dir/src/local_reconstruction.cpp.o" \
+"CMakeFiles/mcl3dlm.dir/src/data_association.cpp.o" \
+"CMakeFiles/mcl3dlm.dir/src/alignment.cpp.o"
 
 # External object files for target mcl3dlm
 mcl3dlm_EXTERNAL_OBJECTS =
 
 mcl3dlm: CMakeFiles/mcl3dlm.dir/src/main.cpp.o
 mcl3dlm: CMakeFiles/mcl3dlm.dir/src/local_reconstruction.cpp.o
+mcl3dlm: CMakeFiles/mcl3dlm.dir/src/data_association.cpp.o
+mcl3dlm: CMakeFiles/mcl3dlm.dir/src/alignment.cpp.o
 mcl3dlm: CMakeFiles/mcl3dlm.dir/build.make
 mcl3dlm: /usr/local/lib/libopencv_gapi.so.4.8.0
 mcl3dlm: /usr/local/lib/libopencv_stitching.so.4.8.0
@@ -143,6 +175,7 @@ mcl3dlm: /usr/local/lib/libopencv_wechat_qrcode.so.4.8.0
 mcl3dlm: /usr/local/lib/libopencv_xfeatures2d.so.4.8.0
 mcl3dlm: /usr/local/lib/libopencv_xobjdetect.so.4.8.0
 mcl3dlm: /usr/local/lib/libopencv_xphoto.so.4.8.0
+mcl3dlm: /home/aysu/open3d_install/lib/libOpen3D.so
 mcl3dlm: /usr/local/lib/libopencv_shape.so.4.8.0
 mcl3dlm: /usr/local/lib/libopencv_highgui.so.4.8.0
 mcl3dlm: /usr/local/lib/libopencv_datasets.so.4.8.0
@@ -164,7 +197,7 @@ mcl3dlm: /usr/local/lib/libopencv_photo.so.4.8.0
 mcl3dlm: /usr/local/lib/libopencv_imgproc.so.4.8.0
 mcl3dlm: /usr/local/lib/libopencv_core.so.4.8.0
 mcl3dlm: CMakeFiles/mcl3dlm.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/aysu/Desktop/projects/mcl3dlm_visnav/mcl3dlm/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CXX executable mcl3dlm"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/aysu/Desktop/projects/mcl3dlm_visnav/mcl3dlm/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Linking CXX executable mcl3dlm"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/mcl3dlm.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

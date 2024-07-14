@@ -129,6 +129,54 @@ mcl3dlm/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/mcl3dlm.dir/build.make CMakeFiles/mcl3dlm.dir/build
 .PHONY : mcl3dlm/fast
 
+src/alignment.o: src/alignment.cpp.o
+.PHONY : src/alignment.o
+
+# target to build an object file
+src/alignment.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mcl3dlm.dir/build.make CMakeFiles/mcl3dlm.dir/src/alignment.cpp.o
+.PHONY : src/alignment.cpp.o
+
+src/alignment.i: src/alignment.cpp.i
+.PHONY : src/alignment.i
+
+# target to preprocess a source file
+src/alignment.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mcl3dlm.dir/build.make CMakeFiles/mcl3dlm.dir/src/alignment.cpp.i
+.PHONY : src/alignment.cpp.i
+
+src/alignment.s: src/alignment.cpp.s
+.PHONY : src/alignment.s
+
+# target to generate assembly for a file
+src/alignment.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mcl3dlm.dir/build.make CMakeFiles/mcl3dlm.dir/src/alignment.cpp.s
+.PHONY : src/alignment.cpp.s
+
+src/data_association.o: src/data_association.cpp.o
+.PHONY : src/data_association.o
+
+# target to build an object file
+src/data_association.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mcl3dlm.dir/build.make CMakeFiles/mcl3dlm.dir/src/data_association.cpp.o
+.PHONY : src/data_association.cpp.o
+
+src/data_association.i: src/data_association.cpp.i
+.PHONY : src/data_association.i
+
+# target to preprocess a source file
+src/data_association.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mcl3dlm.dir/build.make CMakeFiles/mcl3dlm.dir/src/data_association.cpp.i
+.PHONY : src/data_association.cpp.i
+
+src/data_association.s: src/data_association.cpp.s
+.PHONY : src/data_association.s
+
+# target to generate assembly for a file
+src/data_association.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mcl3dlm.dir/build.make CMakeFiles/mcl3dlm.dir/src/data_association.cpp.s
+.PHONY : src/data_association.cpp.s
+
 src/local_reconstruction.o: src/local_reconstruction.cpp.o
 .PHONY : src/local_reconstruction.o
 
@@ -186,6 +234,12 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... mcl3dlm"
+	@echo "... src/alignment.o"
+	@echo "... src/alignment.i"
+	@echo "... src/alignment.s"
+	@echo "... src/data_association.o"
+	@echo "... src/data_association.i"
+	@echo "... src/data_association.s"
 	@echo "... src/local_reconstruction.o"
 	@echo "... src/local_reconstruction.i"
 	@echo "... src/local_reconstruction.s"
