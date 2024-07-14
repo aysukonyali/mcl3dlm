@@ -14,7 +14,7 @@
 #include <opencv2/core/base.hpp>
 #include "local_reconstruction.h"
 #include "alignment.h"
-// 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   github PAT
+
 
 // Function to compute the covariance matrix for a set of points
 Eigen::Matrix3d computeCovarianceMatrix(const std::vector<Eigen::Vector3d> &points) {
