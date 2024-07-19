@@ -24,6 +24,24 @@ void runIcp(open3d::geometry::PointCloud &source,
              Eigen::Matrix4d &initial_transformation);
 
 void cvMatToEigenMat(cv::Mat& cv_mat, Eigen::Matrix4d& eigen_mat);        
+
 open3d::geometry::PointCloud mergePointClouds(open3d::geometry::PointCloud &pc1,open3d::geometry::PointCloud &pc2);
+
 std::vector<Eigen::Vector4f> mergeColors(std::vector<Eigen::Vector4f> color1, std::vector<Eigen::Vector4f> color2);
+
+open3d::geometry::PointCloud get_denser_lidar_map(std::vector<Eigen::Vector4f> lidar_map_t0,
+                                                  std::vector<Eigen::Vector4f> lidar_map_t1,
+                                                  std::vector<Eigen::Vector4f> lidar_map_t2,
+                                                  open3d::geometry::PointCloud open3d_stereo_cam2velo);
+open3d::geometry::PointCloud rotateLidarMap(std::vector<Eigen::Vector4f> &lidar, double angle_deg, std::string filename);
+
+void run_improved_icp(double voxel_size,
+                      int N_min,
+                      int N_standard_devitation,
+                      std::vector<Eigen::Vector4f> &lidar_map_t0,
+                      open3d::geometry::PointCloud &lidar_t0_t1_t2,
+                      double max_correspondence_distance, 
+                      int max_iterations, 
+                      double tolerance);
+
 #endif

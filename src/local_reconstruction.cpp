@@ -48,11 +48,49 @@ std::vector<Eigen::Vector4f> readLidarMap(std::string &filename, std::string fil
     writePLY2(points, filename2save);
     return points;
 }
-void computeDisparity(cv::Mat &left_img, cv::Mat &right_img, cv::Mat &disparity)
-{
+void computeDisparity(cv::Mat left_img, cv::Mat right_img, cv::Mat &disparity)
+{   
+    cv::Mat left_img_gaussian;
+    cv::Mat right_img_gaussian;
+    cv::GaussianBlur(left_img, left_img_gaussian, cv::Size(5, 5), 0);
+    cv::GaussianBlur(right_img, right_img_gaussian, cv::Size(5, 5), 0);
+    left_img_gaussian.convertTo(left_img_gaussian, -1, 0.5, 0);
+    right_img_gaussian.convertTo(right_img_gaussian, -1, 0.5, 0);
+    int minDisparity = 0;
+    int numDisparities = 112; // Ensure this is divisible by 16
+    int blockSize = 3;
+    int P1 = 8 * 3 * blockSize * blockSize;
+    int P2 = 32 * 3 * blockSize * blockSize;
+    int disp12MaxDiff = 1;
+    int preFilterCap = 1;
+    int uniquenessRatio = 11;
+    int speckleWindowSize = 200;
+    int speckleRange = 1;
+    int mode = cv::StereoSGBM::MODE_HH4;
+    cv::Ptr<cv::StereoSGBM> stereo1 = cv::StereoSGBM::create(
+        minDisparity,
+        numDisparities,
+        blockSize,
+        P1,
+        P2,
+        disp12MaxDiff,
+        preFilterCap,
+        uniquenessRatio,
+        speckleWindowSize,
+        speckleRange,
+        mode);
     cv::Ptr<cv::StereoSGBM> stereo = cv::StereoSGBM::create();
-    stereo->compute(left_img, right_img, disparity);
+    stereo1->compute(left_img_gaussian, right_img_gaussian, disparity);
+    //stereo->compute(left_img, right_img, disparity);
+
     disparity.convertTo(disparity, CV_32F, 1.0 / 16.0);
+
+    // cv::Mat bilateral_filtered_disp;
+    // cv::bilateralFilter(disparity, bilateral_filtered_disp, 5, 25, 25);
+    // disparity = bilateral_filtered_disp;
+    // cv::normalize(disparity, disparity, 0, 255, cv::NORM_MINMAX, CV_8U);
+
+
 }
 void applyCLAHE(cv::Mat& image) {
     cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
@@ -61,6 +99,77 @@ void applyCLAHE(cv::Mat& image) {
     clahe->apply(image, result);
     image = result;
 }
+
+// Custom comparator for cv::KeyPoint with integer casting
+struct KeyPointComparator {
+    bool operator()(const cv::KeyPoint& lhs,const  cv::KeyPoint& rhs)const{
+        // int lhs_x = static_cast<int>(lhs.pt.x);
+        // int lhs_y = static_cast<int>(lhs.pt.y);
+        // int rhs_x = static_cast<int>(rhs.pt.x);
+        // int rhs_y = static_cast<int>(rhs.pt.y);
+        // if (lhs_x != rhs_x) return lhs_x < rhs_x;
+        // return lhs_y < rhs_y;
+        if (lhs.pt.x != rhs.pt.x) return lhs.pt.x < rhs.pt.x;
+        return lhs.pt.y < rhs.pt.y;
+    }
+};
+
+// Function to filter unique keypoints with integer casting
+std::vector<cv::KeyPoint> filterUniqueKeypoints(const std::vector<cv::KeyPoint> &keypoints) {
+    std::set<cv::KeyPoint, KeyPointComparator> unique_keypoints(keypoints.begin(), keypoints.end());
+    return std::vector<cv::KeyPoint>(unique_keypoints.begin(), unique_keypoints.end());
+}
+
+void extractKeypoints(cv::Mat &img, std::vector<cv::KeyPoint> &keypoints)
+{
+    // cv::Ptr<cv::FeatureDetector> detector = cv::AKAZE::create();
+    // detector->detect(img, keypoints); cv::SiftFeatureDetector::create();
+    std::vector<cv::KeyPoint> keypoints1;
+    cv::Ptr<cv::Feature2D> detector1 = cv::AKAZE::create();
+    detector1->detect(img, keypoints1);
+    std::vector<cv::KeyPoint> keypoints2;
+    cv::Mat contrast_brightness_img;
+    img.convertTo(contrast_brightness_img, -1, 4.0, 5);
+    cv::Ptr<cv::Feature2D> detector2 = cv::AKAZE::create();
+    detector2->detect(contrast_brightness_img, keypoints2);
+    std::vector<cv::KeyPoint> all_keypoints = keypoints1; // Initialize with keypoints1
+    all_keypoints.insert(all_keypoints.end(), keypoints2.begin(), keypoints2.end()); // Insert keypoints2
+    // allkeypoints.push_back(cv::KeyPoint(cv::Point2f(3000.1f, 4000.3f), 1.0f));
+    // allkeypoints.push_back(cv::KeyPoint(cv::Point2f(3000.2f, 4000.4f), 1.0f));
+    // std::cout << "allkeypoints size " << allkeypoints.size() << std::endl;
+    std::vector<cv::KeyPoint> unique_keypoints = filterUniqueKeypoints(all_keypoints);
+    keypoints=unique_keypoints;
+
+    // std::cout << "keypoints size " << keypoints.size() << std::endl;
+
+    
+    // cv::Ptr<cv::FeatureDetector> detector = cv::AKAZE::create();
+    // detector->detect(contrast_brightness_img, keypoints);
+}
+void getKeypoints_3d(cv::Mat &colors, cv::Mat &points_3d, std::vector<cv::Vec3f> &keypoints_3d, std::vector<cv::Vec3b> &keypoint_colors, std::vector<cv::KeyPoint> &keypoint_coord)
+{
+    int counter = 0;
+    for (int j = 0; j < keypoint_coord.size(); ++j)
+    {
+        int x = static_cast<int>(keypoint_coord[j].pt.x);
+        int y = static_cast<int>(keypoint_coord[j].pt.y);
+
+        if (x >= 0 && x < points_3d.cols && y >= 0 && y < points_3d.rows)
+        {
+            cv::Vec3f point = points_3d.at<cv::Vec3f>(y, x);
+            if (cv::checkRange(point, true, nullptr, -1e4, 1e4))
+            {
+                counter++;
+                keypoints_3d.push_back(point);
+                keypoint_colors.push_back(colors.at<cv::Vec3b>(y, x));
+            }
+        }
+    }
+    std::cout << "counter size " << counter << std::endl;
+    std::string point_cloud_keypoints = "point_cloud_keypoints.ply";
+    write2PLY(keypoints_3d, keypoint_colors, point_cloud_keypoints);
+}
+
 void applyWLSFilter(cv::Mat &img_left, cv::Mat &img_right, cv::Mat &filtered_disparity)
 {
 
@@ -90,30 +199,36 @@ void applyWLSFilter(cv::Mat &img_left, cv::Mat &img_right, cv::Mat &filtered_dis
     // applyCLAHE(img_left);
     // applyCLAHE(img_right);
 
+    cv::Mat left_img_gaussian;
+    cv::Mat right_img_gaussian;
+    cv::GaussianBlur(img_left, left_img_gaussian, cv::Size(5, 5), 0);
+    cv::GaussianBlur(img_right, right_img_gaussian, cv::Size(5, 5), 0);
+    left_img_gaussian.convertTo(left_img_gaussian, -1, 0.5, 0);
+    right_img_gaussian.convertTo(right_img_gaussian, -1, 0.5, 0);
     int minDisparity = 0;
-    int numDisparities = 16; // Must be divisible by 16
-    int blockSize = 7;       // Must be odd
-    int P1 = 1 * 3 * blockSize * blockSize;
-    int P2 = 4 * 3 * blockSize * blockSize;
-    int disp12MaxDiff = 0;
-    int preFilterCap = 0;
-    int uniquenessRatio = 50; // Adjust this to influence confidence
-    int speckleWindowSize = 0;
-    int speckleRange = 2;
+    int numDisparities = 16; // Ensure this is divisible by 16
+    int blockSize = 3;
+    int P1 = 8 * 3 * blockSize * blockSize;
+    int P2 = 32 * 3 * blockSize * blockSize;
+    int disp12MaxDiff = 1;
+    int preFilterCap = 1;
+    int uniquenessRatio = 11;
+    int speckleWindowSize = 200;
+    int speckleRange = 1;
     int mode = cv::StereoSGBM::MODE_HH4;
-    cv::Ptr<cv::StereoSGBM> left_matcher = cv::StereoSGBM::create(0, 16, 7, 0, 0, 0, 0, 30, 100, 2, cv::StereoSGBM::MODE_HH);
-    // cv::Ptr<cv::StereoSGBM> left_matcher = cv::StereoSGBM::create(
-    //     minDisparity,
-    //     numDisparities,
-    //     blockSize,
-    //     P1,
-    //     P2,
-    //     disp12MaxDiff,
-    //     preFilterCap,
-    //     uniquenessRatio,
-    //     speckleWindowSize,
-    //     speckleRange,
-    //     mode);
+    cv::Ptr<cv::StereoSGBM> left_matcher = cv::StereoSGBM::create(
+        minDisparity,
+        numDisparities,
+        blockSize,
+        P1,
+        P2,
+        disp12MaxDiff,
+        preFilterCap,
+        uniquenessRatio,
+        speckleWindowSize,
+        speckleRange,
+        mode);
+
 
     cv::Ptr<cv::ximgproc::DisparityWLSFilter> wls_filter = cv::ximgproc::createDisparityWLSFilter(left_matcher);
     cv::Ptr<cv::StereoMatcher> right_matcher = cv::ximgproc::createRightMatcher(left_matcher);
@@ -126,27 +241,30 @@ void applyWLSFilter(cv::Mat &img_left, cv::Mat &img_right, cv::Mat &filtered_dis
     wls_filter->setSigmaColor(1.5);
     wls_filter->filter(left_disp, img_left, filtered_disparity, right_disp);
     // filtered_disparity *= 16.0*16.0;
-    // filtered_disparity.convertTo(filtered_disparity, CV_32F, 1.0 / 16.0);
+    //filtered_disparity.convertTo(filtered_disparity, CV_32F, 1.0 / 16.0);
 }
 
 void reconstruct3DPoints(cv::Mat &disparity, cv::Mat &Q, cv::Mat &points_3d)
 {
-    cv::reprojectImageTo3D(disparity, points_3d, Q);
+    cv::reprojectImageTo3D(disparity, points_3d, Q, true);
+    //cv::perspectiveTransform(points_3d, points_3d, cv::Mat::eye(4, 4, CV_64F));
 }
 
 void compute_Q_matrix(cv::Mat &P_rect_02, cv::Mat &T_02, cv::Mat &Q)
 {
     // Compute the Q matrix
+    std::cout << "Q matrix " << std::endl;
     double fx = P_rect_02.at<double>(0, 0);
     double cx = P_rect_02.at<double>(0, 2);
     double cy = P_rect_02.at<double>(1, 2);
-
+    std::cout << "Q matrix " << std::endl;
     Q.at<double>(0, 0) = 1.0;
     Q.at<double>(0, 3) = -cx;
     Q.at<double>(1, 1) = 1.0;
     Q.at<double>(1, 3) = -cy;
     Q.at<double>(2, 3) = fx;
     Q.at<double>(3, 2) = -1.0 / T_02.at<double>(0, 0);
+    std::cout << "Q matrix " << std::endl;
 }
 void write2PLY(std::vector<cv::Vec3f> &points, std::vector<cv::Vec3b> &colors, std::string &filename)
 {
@@ -172,34 +290,11 @@ void write2PLY(std::vector<cv::Vec3f> &points, std::vector<cv::Vec3b> &colors, s
     {
         ofs << points[i][0] << " " << points[i][1] << " " << points[i][2] << " "
             << (int)colors[i][0] << " " << (int)colors[i][1] << " " << (int)colors[i][2] << "\n";
+        //ofs << points[i][0] << " " << points[i][1] << " " << points[i][2] << "\n";
+
     }
 
     ofs.close();
-}
-
-// Function to convert keypoint coordinates
-void getKeypoints_3d(cv::Mat &colors, cv::Mat &points_3d, std::vector<cv::Vec3f> &keypoints_3d, std::vector<cv::Vec3b> &keypoint_colors, std::vector<cv::KeyPoint> &keypoint_coord)
-{
-    int counter = 0;
-    for (int j = 0; j < keypoint_coord.size(); ++j)
-    {
-        int x = static_cast<int>(keypoint_coord[j].pt.x);
-        int y = static_cast<int>(keypoint_coord[j].pt.y);
-
-        if (x >= 0 && x < points_3d.cols && y >= 0 && y < points_3d.rows)
-        {
-            cv::Vec3f point = points_3d.at<cv::Vec3f>(y, x);
-            if (cv::checkRange(point, true, nullptr, -1e4, 1e4))
-            {
-                counter++;
-                keypoints_3d.push_back(point);
-                keypoint_colors.push_back(colors.at<cv::Vec3b>(y, x));
-            }
-        }
-    }
-    std::cout << "counter size " << counter << std::endl;
-    std::string point_cloud_keypoints = "point_cloud_keypoints.ply";
-    write2PLY(keypoints_3d, keypoint_colors, point_cloud_keypoints);
 }
 
 // Function to convert all points
@@ -223,20 +318,6 @@ void getAllPoints_3d(cv::Mat &colors, cv::Mat &points_3d, std::vector<cv::Vec3f>
 
 void cvMatToEigen(cv::Mat &colors, cv::Mat &points_3d, std::vector<Eigen::Vector3d> &eigen_points, std::vector<cv::Vec3b> &out_colors, std::vector<cv::KeyPoint> &keypoint_coord)
 {
-    // for (int i = 0; i < points_3d.rows; ++i)
-    // {
-    //     for (int j = 0; j < points_3d.cols; ++j)
-    //     {
-    //         cv::Vec3f point = points_3d.at<cv::Vec3f>(i, j);
-    //         // if (cv::checkRange(point, true, nullptr, -1e4, 1e4) && mask.at<uchar>(i, j))
-    //         if (cv::checkRange(point, true, nullptr, -1e4, 1e4))
-    //         {
-    //             Eigen::Vector3d eigen_point(point[0], point[1], point[2]);
-    //             eigen_points.push_back(eigen_point);
-    //             out_colors.push_back(colors.at<cv::Vec3b>(i, j));
-    //         }
-    //     }
-    // }
     int counter = 0;
     std::cout << "keypoint_coord size " << keypoint_coord.size() << std::endl;
     std::cout << "points_3d.cols size " << points_3d.cols << std::endl;
@@ -355,14 +436,14 @@ void readCalibrationFile(std::string &filename, cv::Mat &P_rect_02, cv::Mat &T_0
         std::string key;
         if (std::getline(ss, key, ':'))
         {
-            if (key == "P_rect_02")
+            if (key == "P_rect_00")
             {
                 P_rect_02 = cv::Mat(3, 4, CV_64F);
                 for (int i = 0; i < 3; ++i)
                     for (int j = 0; j < 4; ++j)
                         ss >> P_rect_02.at<double>(i, j);
             }
-            else if (key == "T_03")
+            else if (key == "T_01")
             {
                 T_03 = cv::Mat(3, 1, CV_64F);
                 for (int i = 0; i < 3; ++i)
@@ -385,159 +466,6 @@ void readCalibrationFile(std::string &filename, cv::Mat &P_rect_02, cv::Mat &T_0
     }
 
     file.close();
-}
-
-void generatePointCloud(cv::Mat &disparity, cv::Mat &left_img, cv::Mat &Q, open3d::geometry::PointCloud &pointCloud)
-{
-
-    for (int i = 0; i < disparity.rows; i++)
-    {
-        for (int j = 0; j < disparity.cols; j++)
-        {
-            float d = disparity.at<float>(i, j);
-            if (d <= 0 || d >= 96 || std::isnan(d) || std::isinf(d)) // Filter out invalid disparities
-                continue;
-
-            cv::Mat vec = (cv::Mat_<double>(4, 1) << j, i, d, 1.0);
-            cv::Mat xyz = Q * vec;
-            xyz /= xyz.at<double>(3, 0);
-
-            double x = xyz.at<double>(0, 0);
-            double y = xyz.at<double>(1, 0);
-            double z = xyz.at<double>(2, 0);
-
-            if (std::isnan(x) || std::isinf(x) ||
-                std::isnan(y) || std::isinf(y) ||
-                std::isnan(z) || std::isinf(z))
-            {
-                continue;
-            }
-            // if(mask.at<uchar>(i, j)) {
-            Eigen::Vector3d point(x, y, z);
-            cv::Vec3b colorVec = left_img.at<cv::Vec3b>(i, j);
-            Eigen::Vector3d color(colorVec[2] / 255.0, colorVec[1] / 255.0, colorVec[0] / 255.0);
-
-            pointCloud.points_.push_back(point);
-            pointCloud.colors_.push_back(color);
-            //}
-        }
-    }
-}
-
-void filterPointCloud(open3d::geometry::PointCloud &pointCloud, cv::Mat &disparity)
-{
-    double min_disparity;
-    cv::minMaxIdx(disparity, &min_disparity, nullptr);
-    cv::Mat mask = disparity > min_disparity;
-
-    // Create a new point cloud to store filtered points
-    open3d::geometry::PointCloud filteredPointCloud;
-    for (size_t i = 0; i < pointCloud.points_.size(); ++i)
-    {
-        const auto &point = pointCloud.points_[i];
-        // if (mask.at<uint8_t>(i) && fabs(point.x()) < 10.5) {
-        if (mask.at<uint8_t>(i))
-        {
-            filteredPointCloud.points_.push_back(point);
-            filteredPointCloud.colors_.push_back(pointCloud.colors_[i]);
-        }
-    }
-
-    // Replace the original point cloud with the filtered one
-    pointCloud = filteredPointCloud;
-}
-
-// Function implementations
-//  ORB detected too little keypoints
-//  FAST detected much more keypoints
-//  AKAZE was not bad but less keypoints compared to SIFT
-void extractKeypointsAndDescriptors(cv::Mat &img, std::vector<cv::KeyPoint> &keypoints, cv::Mat &descriptors)
-{
-    // cv::Ptr<cv::Feature2D> detector = cv::SiftFeatureDetector::create();
-    // detector->detect(img, keypoints);
-
-    cv::Ptr<cv::FeatureDetector> detector = cv::SIFT::create();
-    detector->detect(img, keypoints);
-
-    // cv::Ptr<cv::FeatureDetector> detector = cv::FastFeatureDetector::create();
-    // detector->detect(img, keypoints);
-
-    // cv::Ptr<cv::FeatureDetector> detector = cv::ORB::create();
-    // detector->detect(img, keypoints);
-
-    // cv::Ptr<cv::FeatureDetector> detector = cv::AKAZE::create();
-    // detector->detect(img, keypoints);
-
-    // cv::Ptr<cv::DescriptorExtractor> extractor = cv::xfeatures2d::BriefDescriptorExtractor::create();
-    // extractor->compute(img, keypoints, descriptors);
-
-    //     // Sub-pixel refinement
-    // cv::Mat gray;
-    // cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY); // Convert to grayscale
-    // std::vector<cv::Point2f> points;
-    // for (auto &kp : keypoints) {
-    //     points.push_back(kp.pt);
-    // }
-
-    // cv::TermCriteria criteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 40, 0.001);
-    // cv::cornerSubPix(gray, points, cv::Size(5, 5), cv::Size(-1, -1), criteria);
-
-    // for (size_t i = 0; i < points.size(); ++i) {
-    //     keypoints[i].pt = points[i];
-    // }
-}
-
-void matchDescriptors(cv::Mat &descriptors1, cv::Mat &descriptors2, std::vector<cv::DMatch> &good_matches)
-{
-    cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::FLANNBASED);
-    std::vector<std::vector<cv::DMatch>> knn_matches;
-    matcher->knnMatch(descriptors1, descriptors2, knn_matches, 2);
-
-    const float ratio_thresh = 0.75f;
-    for (size_t i = 0; i < knn_matches.size(); i++)
-    {
-        if (knn_matches[i][0].distance < ratio_thresh * knn_matches[i][1].distance)
-        {
-            good_matches.push_back(knn_matches[i][0]);
-        }
-    }
-}
-
-void filter3DPoints(std::vector<cv::KeyPoint> &keypoints1, std::vector<cv::KeyPoint> &keypoints2,
-                    std::vector<cv::DMatch> &matches, std::vector<Eigen::Vector3d> &points3D,
-                    std::vector<Eigen::Vector3d> &filteredPoints3D)
-{
-    std::set<int> used_indices;
-    for (const auto &match : matches)
-    {
-        used_indices.insert(match.queryIdx);
-    }
-
-    for (size_t i = 0; i < points3D.size(); ++i)
-    {
-        if (used_indices.count(i))
-        {
-            filteredPoints3D.push_back(points3D[i]);
-        }
-    }
-}
-
-void getKeyPointCoordinatesFromMatches(std::vector<cv::KeyPoint> &keypoints_left,
-                                       std::vector<cv::DMatch> &matches, std::vector<cv::Point2f> &keypoint_coord)
-{
-    // Iterate through matches
-    for (size_t i = 0; i < matches.size(); ++i)
-    {
-        // Get the indices of keypoints in the left and right images
-        int queryIdx = matches[i].queryIdx;
-
-        // Get the keypoints from keypoints_left and keypoints_right
-        cv::KeyPoint kp_left = keypoints_left[queryIdx];
-
-        // Extract image coordinates
-        cv::Point2f coord_left = kp_left.pt;
-        keypoint_coord.push_back(coord_left);
-    }
 }
 
 void transform_cam2velodyn(cv::Mat &R, cv::Mat &T, Eigen::Matrix4d &t_cam2velo, std::vector<Eigen::Vector3d> &eigen_points)
