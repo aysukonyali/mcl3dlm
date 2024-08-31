@@ -12,59 +12,129 @@
 #include <fstream>
 #include <iostream>
 #include "data_association.h"
-void visualize_correspondences(
-     open3d::geometry::PointCloud &source,
-     open3d::geometry::PointCloud &target,
-     open3d::pipelines::registration::CorrespondenceSet &correspondences) 
+#include "simple_odometry.h"
+
+void drawCorrespondences(
+    const open3d::geometry::PointCloud &source,
+    const open3d::geometry::PointCloud &target,
+    const open3d::pipelines::registration::CorrespondenceSet &correspondences)
 {
-    // Create a vector to hold the point clouds and linesets
-    std::vector<std::shared_ptr<const open3d::geometry::Geometry>> geometries;
 
-    // Create copies of the source and target point clouds to avoid modifying the originals
-    auto source_copy = std::make_shared<open3d::geometry::PointCloud>(source);
-    auto target_copy = std::make_shared<open3d::geometry::PointCloud>(target);
-
-    // Set colors for visualization
-    source_copy->PaintUniformColor(Eigen::Vector3d(1, 0, 0));  // Red for source
-    target_copy->PaintUniformColor(Eigen::Vector3d(0, 1, 0));  // Green for target
-
-    // Add the point clouds to the geometries vector
-    geometries.push_back(source_copy);
-    geometries.push_back(target_copy);
-
-    // Create a LineSet to show correspondences
+    // Create a LineSet to visualize the correspondences
     auto line_set = std::make_shared<open3d::geometry::LineSet>();
 
-    // Collect all points from source and target point clouds
-    std::vector<Eigen::Vector3d> points;
-    points.insert(points.end(), source.points_.begin(), source.points_.end());
-    points.insert(points.end(), target.points_.begin(), target.points_.end());
+    // Offset to separate the two point clouds visually
+    Eigen::Vector3d offset(0.0, 0.0, 12.0);
 
-    // Add points to the LineSet
-    line_set->points_ = points;
+    // Add the points from both point clouds to the LineSet
+    line_set->points_.resize(source.points_.size() + target.points_.size());
+    for (size_t i = 0; i < source.points_.size(); ++i)
+    {
+        line_set->points_[i] = source.points_[i];
+    }
+    for (size_t i = 0; i < target.points_.size(); ++i)
+    {
+        line_set->points_[i + source.points_.size()] = target.points_[i] + offset;
+    }
 
-    // Add lines connecting corresponding points
-    for (const auto &correspondence : correspondences) {
-        int src_idx = correspondence(0);
-        int tgt_idx = correspondence(1);
+    // Add lines for correspondences
+    for (const auto &correspondence : correspondences)
+    {
+        line_set->lines_.push_back(Eigen::Vector2i(correspondence[0], correspondence[1] + source.points_.size()));
+        line_set->colors_.push_back(Eigen::Vector3d(1, 0, 0)); // Red color for lines
+    }
 
-        // Ensure the indices are within bounds
-        if (src_idx < source.points_.size() && tgt_idx < target.points_.size()) {
-            // The target index is offset by the number of points in the source point cloud
-            line_set->lines_.emplace_back(src_idx, source.points_.size() + tgt_idx);
-            line_set->colors_.emplace_back(0.0, 0.0, 1.0);  // Blue color for correspondences
-        } else {
-            std::cerr << "Correspondence index out of bounds: src_idx = " << src_idx << ", tgt_idx = " << tgt_idx << std::endl;
+    // Visualize the source and target point clouds along with the correspondences
+    open3d::visualization::Visualizer visualizer;
+    visualizer.CreateVisualizerWindow("Correspondences", 1600, 1200);
+
+    auto source_ptr = std::make_shared<open3d::geometry::PointCloud>(source);
+    auto target_ptr = std::make_shared<open3d::geometry::PointCloud>(target);
+    for (auto &point : target_ptr->points_)
+    {
+        point += offset;
+    }
+
+    visualizer.AddGeometry(source_ptr);
+    visualizer.AddGeometry(target_ptr);
+    visualizer.AddGeometry(line_set);
+    visualizer.GetRenderOption().point_size_ = 11.0;
+    visualizer.Run();
+    visualizer.DestroyVisualizerWindow();
+}
+void drawRefinedCorrespondences(
+    const open3d::geometry::PointCloud &source,
+    const open3d::geometry::PointCloud &target,
+    const open3d::pipelines::registration::CorrespondenceSet &correspondences1,
+    const open3d::pipelines::registration::CorrespondenceSet &correspondences2)
+{
+    // Helper function to convert CorrespondenceSet to std::set for easy lookup
+    auto toSet = [](const open3d::pipelines::registration::CorrespondenceSet &correspondences) {
+        std::set<std::pair<int, int>> correspondence_set;
+        for (const auto &correspondence : correspondences)
+        {
+            correspondence_set.insert({correspondence[0], correspondence[1]});
+        }
+        return correspondence_set;
+    };
+
+    // Convert the second correspondence set to a std::set
+    auto correspondences2_set = toSet(correspondences2);
+
+    // Create a LineSet to visualize the correspondences
+    auto line_set = std::make_shared<open3d::geometry::LineSet>();
+
+    // Offset to separate the two point clouds visually
+    Eigen::Vector3d offset(0.0, 0.0, 12.0);
+
+    // Add the points from both point clouds to the LineSet
+    line_set->points_.resize(source.points_.size() + target.points_.size());
+    for (size_t i = 0; i < source.points_.size(); ++i)
+    {
+        line_set->points_[i] = source.points_[i];
+    }
+    for (size_t i = 0; i < target.points_.size(); ++i)
+    {
+        line_set->points_[i + source.points_.size()] = target.points_[i] + offset;
+    }
+
+    // Add lines for correspondences
+    for (const auto &correspondence : correspondences1)
+    {
+        int src_idx = correspondence[0];
+        int tgt_idx = correspondence[1] + source.points_.size();
+
+        // Check if this correspondence is in the second set
+        if (correspondences2_set.find({correspondence[0], correspondence[1]}) != correspondences2_set.end())
+        {
+            line_set->lines_.push_back(Eigen::Vector2i(src_idx, tgt_idx));
+            line_set->colors_.push_back(Eigen::Vector3d(0, 1, 0)); // Green color for common lines
+        }
+        else
+        {
+            line_set->lines_.push_back(Eigen::Vector2i(src_idx, tgt_idx));
+            line_set->colors_.push_back(Eigen::Vector3d(1, 0, 0)); // Red color for unique lines
         }
     }
 
-    // Add the LineSet to the geometries vector
-    geometries.push_back(line_set);
+    // Visualize the source and target point clouds along with the correspondences
+    open3d::visualization::Visualizer visualizer;
+    visualizer.CreateVisualizerWindow("Correspondences", 1600, 1200);
 
-    // Visualize
-    open3d::visualization::DrawGeometries(geometries, "Correspondences", 800, 600);
+    auto source_ptr = std::make_shared<open3d::geometry::PointCloud>(source);
+    auto target_ptr = std::make_shared<open3d::geometry::PointCloud>(target);
+    for (auto &point : target_ptr->points_)
+    {
+        point += offset;
+    }
+
+    visualizer.AddGeometry(source_ptr);
+    visualizer.AddGeometry(target_ptr);
+    visualizer.AddGeometry(line_set);
+    visualizer.GetRenderOption().point_size_ = 11.0;
+    visualizer.Run();
+    visualizer.DestroyVisualizerWindow();
 }
-
 // Function to compute the covariance matrix for a set of points
 Eigen::Matrix3d computeCovarianceMatrix(std::vector<Eigen::Vector3d> &points, Eigen::Vector3d &mean)
 {
@@ -197,7 +267,7 @@ std::vector<Eigen::Vector3i> getNeighboringVoxels(Eigen::Vector3i &voxel_index)
 }
 
 open3d::pipelines::registration::CorrespondenceSet refineCorrespondences(
-    open3d::pipelines::registration::CorrespondenceSet correspondences,
+    open3d::pipelines::registration::CorrespondenceSet &correspondences,
     open3d::geometry::PointCloud &source,
     open3d::geometry::PointCloud &target,
     std::unordered_map<Eigen::Vector3i, VoxelData, open3d::utility::hash_eigen<Eigen::Vector3i>> &voxel_to_data_map,

@@ -12,6 +12,7 @@
 #include <fstream>
 #include <iostream>
 #include "local_reconstruction.h"
+#include "simple_odometry.h"
 
 void printMat(cv::Mat &mat)
 {
@@ -49,7 +50,7 @@ std::vector<Eigen::Vector4f> readLidarMap(std::string &filename, std::string fil
     return points;
 }
 void computeDisparity(cv::Mat left_img, cv::Mat right_img, cv::Mat &disparity)
-{   
+{
     cv::Mat left_img_gaussian;
     cv::Mat right_img_gaussian;
     cv::GaussianBlur(left_img, left_img_gaussian, cv::Size(5, 5), 0);
@@ -58,14 +59,14 @@ void computeDisparity(cv::Mat left_img, cv::Mat right_img, cv::Mat &disparity)
     right_img_gaussian.convertTo(right_img_gaussian, -1, 0.5, 0);
     int minDisparity = 0;
     int numDisparities = 112; // Ensure this is divisible by 16
-    int blockSize = 3;
+    int blockSize = 5;
     int P1 = 8 * 3 * blockSize * blockSize;
     int P2 = 32 * 3 * blockSize * blockSize;
     int disp12MaxDiff = 1;
-    int preFilterCap = 1;
-    int uniquenessRatio = 11;
-    int speckleWindowSize = 200;
-    int speckleRange = 1;
+    int preFilterCap = 31;
+    int uniquenessRatio = 12;
+    int speckleWindowSize = 150;
+    int speckleRange = 2;
     int mode = cv::StereoSGBM::MODE_HH4;
     cv::Ptr<cv::StereoSGBM> stereo1 = cv::StereoSGBM::create(
         minDisparity,
@@ -79,20 +80,19 @@ void computeDisparity(cv::Mat left_img, cv::Mat right_img, cv::Mat &disparity)
         speckleWindowSize,
         speckleRange,
         mode);
-    cv::Ptr<cv::StereoSGBM> stereo = cv::StereoSGBM::create();
+    // cv::Ptr<cv::StereoSGBM> stereo = cv::StereoSGBM::create();
+    // stereo->compute(left_img, right_img, disparity);
     stereo1->compute(left_img_gaussian, right_img_gaussian, disparity);
-    //stereo->compute(left_img, right_img, disparity);
-
     disparity.convertTo(disparity, CV_32F, 1.0 / 16.0);
 
-    // cv::Mat bilateral_filtered_disp;
-    // cv::bilateralFilter(disparity, bilateral_filtered_disp, 5, 25, 25);
-    // disparity = bilateral_filtered_disp;
-    // cv::normalize(disparity, disparity, 0, 255, cv::NORM_MINMAX, CV_8U);
-
-
+    // disparity.convertTo(disparity, CV_8U, 255 / (numDisparities * 16.));
+    //  cv::Mat bilateral_filtered_disp;
+    //  cv::bilateralFilter(disparity, bilateral_filtered_disp, 5, 25, 25);
+    //  disparity = bilateral_filtered_disp;
+    //  cv::normalize(disparity, disparity, 0, 255, cv::NORM_MINMAX, CV_8U);
 }
-void applyCLAHE(cv::Mat& image) {
+void applyCLAHE(cv::Mat &image)
+{
     cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
     clahe->setClipLimit(4);
     cv::Mat result;
@@ -101,21 +101,25 @@ void applyCLAHE(cv::Mat& image) {
 }
 
 // Custom comparator for cv::KeyPoint with integer casting
-struct KeyPointComparator {
-    bool operator()(const cv::KeyPoint& lhs,const  cv::KeyPoint& rhs)const{
+struct KeyPointComparator
+{
+    bool operator()(const cv::KeyPoint &lhs, const cv::KeyPoint &rhs) const
+    {
         // int lhs_x = static_cast<int>(lhs.pt.x);
         // int lhs_y = static_cast<int>(lhs.pt.y);
         // int rhs_x = static_cast<int>(rhs.pt.x);
         // int rhs_y = static_cast<int>(rhs.pt.y);
         // if (lhs_x != rhs_x) return lhs_x < rhs_x;
         // return lhs_y < rhs_y;
-        if (lhs.pt.x != rhs.pt.x) return lhs.pt.x < rhs.pt.x;
+        if (lhs.pt.x != rhs.pt.x)
+            return lhs.pt.x < rhs.pt.x;
         return lhs.pt.y < rhs.pt.y;
     }
 };
 
 // Function to filter unique keypoints with integer casting
-std::vector<cv::KeyPoint> filterUniqueKeypoints(const std::vector<cv::KeyPoint> &keypoints) {
+std::vector<cv::KeyPoint> filterUniqueKeypoints(const std::vector<cv::KeyPoint> &keypoints)
+{
     std::set<cv::KeyPoint, KeyPointComparator> unique_keypoints(keypoints.begin(), keypoints.end());
     return std::vector<cv::KeyPoint>(unique_keypoints.begin(), unique_keypoints.end());
 }
@@ -125,34 +129,36 @@ void extractKeypoints(cv::Mat &img, std::vector<cv::KeyPoint> &keypoints)
     // cv::Ptr<cv::FeatureDetector> detector = cv::AKAZE::create();
     // detector->detect(img, keypoints); cv::SiftFeatureDetector::create();
     std::vector<cv::KeyPoint> keypoints1;
-    cv::Ptr<cv::Feature2D> detector1 = cv::AKAZE::create();
+    cv::Ptr<cv::Feature2D> detector1 = cv::SiftFeatureDetector::create();
     detector1->detect(img, keypoints1);
     std::vector<cv::KeyPoint> keypoints2;
     cv::Mat contrast_brightness_img;
-    img.convertTo(contrast_brightness_img, -1, 4.0, 5);
-    cv::Ptr<cv::Feature2D> detector2 = cv::AKAZE::create();
+    img.convertTo(contrast_brightness_img, -1, 3.0, 45);
+    cv::Ptr<cv::Feature2D> detector2 = cv::SiftFeatureDetector::create();
     detector2->detect(contrast_brightness_img, keypoints2);
-    std::vector<cv::KeyPoint> all_keypoints = keypoints1; // Initialize with keypoints1
+    std::vector<cv::KeyPoint> all_keypoints = keypoints1;                            // Initialize with keypoints1
     all_keypoints.insert(all_keypoints.end(), keypoints2.begin(), keypoints2.end()); // Insert keypoints2
     // allkeypoints.push_back(cv::KeyPoint(cv::Point2f(3000.1f, 4000.3f), 1.0f));
     // allkeypoints.push_back(cv::KeyPoint(cv::Point2f(3000.2f, 4000.4f), 1.0f));
     // std::cout << "allkeypoints size " << allkeypoints.size() << std::endl;
     std::vector<cv::KeyPoint> unique_keypoints = filterUniqueKeypoints(all_keypoints);
-    keypoints=unique_keypoints;
+    keypoints = unique_keypoints;
 
     // std::cout << "keypoints size " << keypoints.size() << std::endl;
 
-    
     // cv::Ptr<cv::FeatureDetector> detector = cv::AKAZE::create();
     // detector->detect(contrast_brightness_img, keypoints);
 }
+
 void getKeypoints_3d(cv::Mat &colors, cv::Mat &points_3d, std::vector<cv::Vec3f> &keypoints_3d, std::vector<cv::Vec3b> &keypoint_colors, std::vector<cv::KeyPoint> &keypoint_coord)
 {
     int counter = 0;
     for (int j = 0; j < keypoint_coord.size(); ++j)
     {
-        int x = static_cast<int>(keypoint_coord[j].pt.x);
-        int y = static_cast<int>(keypoint_coord[j].pt.y);
+        // int x = static_cast<int>(keypoint_coord[j].pt.x);
+        // int y = static_cast<int>(keypoint_coord[j].pt.y);
+        int x = static_cast<int>(std::round(keypoint_coord[j].pt.x));
+        int y = static_cast<int>(std::round(keypoint_coord[j].pt.y));
 
         if (x >= 0 && x < points_3d.cols && y >= 0 && y < points_3d.rows)
         {
@@ -229,7 +235,6 @@ void applyWLSFilter(cv::Mat &img_left, cv::Mat &img_right, cv::Mat &filtered_dis
         speckleRange,
         mode);
 
-
     cv::Ptr<cv::ximgproc::DisparityWLSFilter> wls_filter = cv::ximgproc::createDisparityWLSFilter(left_matcher);
     cv::Ptr<cv::StereoMatcher> right_matcher = cv::ximgproc::createRightMatcher(left_matcher);
     cv::Mat left_disp, right_disp;
@@ -241,30 +246,30 @@ void applyWLSFilter(cv::Mat &img_left, cv::Mat &img_right, cv::Mat &filtered_dis
     wls_filter->setSigmaColor(1.5);
     wls_filter->filter(left_disp, img_left, filtered_disparity, right_disp);
     // filtered_disparity *= 16.0*16.0;
-    //filtered_disparity.convertTo(filtered_disparity, CV_32F, 1.0 / 16.0);
+    // filtered_disparity.convertTo(filtered_disparity, CV_32F, 1.0 / 16.0);
 }
 
 void reconstruct3DPoints(cv::Mat &disparity, cv::Mat &Q, cv::Mat &points_3d)
 {
     cv::reprojectImageTo3D(disparity, points_3d, Q, true);
-    //cv::perspectiveTransform(points_3d, points_3d, cv::Mat::eye(4, 4, CV_64F));
+    // cv::perspectiveTransform(points_3d, points_3d, cv::Mat::eye(4, 4, CV_64F));
 }
 
 void compute_Q_matrix(cv::Mat &P_rect_02, cv::Mat &T_02, cv::Mat &Q)
 {
     // Compute the Q matrix
-    std::cout << "Q matrix " << std::endl;
+
     double fx = P_rect_02.at<double>(0, 0);
     double cx = P_rect_02.at<double>(0, 2);
     double cy = P_rect_02.at<double>(1, 2);
-    std::cout << "Q matrix " << std::endl;
+
     Q.at<double>(0, 0) = 1.0;
     Q.at<double>(0, 3) = -cx;
     Q.at<double>(1, 1) = 1.0;
     Q.at<double>(1, 3) = -cy;
     Q.at<double>(2, 3) = fx;
     Q.at<double>(3, 2) = -1.0 / T_02.at<double>(0, 0);
-    std::cout << "Q matrix " << std::endl;
+    // Q.at<double>(3, 2) = -1.0/(-0.51);
 }
 void write2PLY(std::vector<cv::Vec3f> &points, std::vector<cv::Vec3b> &colors, std::string &filename)
 {
@@ -290,8 +295,7 @@ void write2PLY(std::vector<cv::Vec3f> &points, std::vector<cv::Vec3b> &colors, s
     {
         ofs << points[i][0] << " " << points[i][1] << " " << points[i][2] << " "
             << (int)colors[i][0] << " " << (int)colors[i][1] << " " << (int)colors[i][2] << "\n";
-        //ofs << points[i][0] << " " << points[i][1] << " " << points[i][2] << "\n";
-
+        // ofs << points[i][0] << " " << points[i][1] << " " << points[i][2] << "\n";
     }
 
     ofs.close();
@@ -425,7 +429,7 @@ void write2PLY2(std::vector<Eigen::Vector3d> &points, std::vector<cv::Vec3b> &co
 
     ofs.close();
 }
-void readCalibrationFile(std::string &filename, cv::Mat &P_rect_02, cv::Mat &T_03, cv::Mat &R, cv::Mat &T)
+void readCalibrationFile(std::string &filename, cv::Mat &P_rect_02, cv::Mat &R_rect_00, cv::Mat &T_00, cv::Mat &T_03, cv::Mat &R, cv::Mat &T, cv::Mat &K, cv::Mat &D)
 {
     std::ifstream file(filename);
 
@@ -443,11 +447,37 @@ void readCalibrationFile(std::string &filename, cv::Mat &P_rect_02, cv::Mat &T_0
                     for (int j = 0; j < 4; ++j)
                         ss >> P_rect_02.at<double>(i, j);
             }
+            if (key == "P_rect_01")
+            {
+                R_rect_00 = cv::Mat(3, 4, CV_64F);
+                for (int i = 0; i < 3; ++i)
+                    for (int j = 0; j < 4; ++j)
+                        ss >> R_rect_00.at<double>(i, j);
+            }
             else if (key == "T_01")
             {
                 T_03 = cv::Mat(3, 1, CV_64F);
                 for (int i = 0; i < 3; ++i)
                     ss >> T_03.at<double>(i, 0);
+            }
+            else if (key == "K_00")
+            {
+                K = cv::Mat(3, 3, CV_64F);
+                for (int i = 0; i < 3; ++i)
+                    for (int j = 0; j < 3; ++j)
+                        ss >> K.at<double>(i, j);
+            }
+            else if (key == "D_00")
+            {
+                D = cv::Mat(5, 1, CV_64F);
+                for (int i = 0; i < 5; ++i)
+                    ss >> D.at<double>(i, 0);
+            }
+            else if (key == "T_00")
+            {
+                T_00 = cv::Mat(3, 1, CV_64F);
+                for (int i = 0; i < 3; ++i)
+                    ss >> T_00.at<double>(i, 0);
             }
             else if (key == "R")
             {
